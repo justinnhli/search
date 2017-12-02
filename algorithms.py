@@ -175,21 +175,21 @@ class SingleStateSearch(AbstractSearch):
 
 class GoalOrientedSearch(AbstractSearch):
 
-    def termination_fn(self, state_list):
-        return state_list and state_list[0] == self.goal_state
-
     def __init__(self, goal_state, **kwargs):
         super().__init__(**kwargs)
         self.goal_state = goal_state
 
+    def termination_fn(self, state_list):
+        return state_list and state_list[0] == self.goal_state
+
 
 class DepthFirstSearch(SingleStateSearch):
 
-    def priority_fn(self, node):
-        return -len(node.path())
-
     def __init__(self, **kwargs):
         super().__init__(memoryless=False, **kwargs)
+
+    def priority_fn(self, node):
+        return -len(node.path())
 
 
 class GoalOrientedDepthFirstSearch(DepthFirstSearch, GoalOrientedSearch):
@@ -215,11 +215,11 @@ class GoalOrientedBreadthFirstSearch(BreadthFirstSearch, GoalOrientedSearch):
 
 class UniformCostSearch(SingleStateSearch):
 
-    def priority_fn(self, node):
-        return node.total_cost()
-
     def __init__(self, **kwargs):
         super().__init__(memoryless=False, **kwargs)
+
+    def priority_fn(self, node):
+        return node.total_cost()
 
 
 class GoalOrientedUniformCostSearch(UniformCostSearch, GoalOrientedSearch):
@@ -230,23 +230,26 @@ class GoalOrientedUniformCostSearch(UniformCostSearch, GoalOrientedSearch):
 
 class GreedyBestFirstSearch(SingleStateSearch, GoalOrientedSearch):
 
-    def priority_fn(self, node):
-        return node.state.heuristic(self.goal_state)
-
     def __init__(self, **kwargs):
         super().__init__(memoryless=False, **kwargs)
+
+    def priority_fn(self, node):
+        return node.state.heuristic(self.goal_state)
 
 
 class AStarSearch(SingleStateSearch, GoalOrientedSearch):
 
-    def priority_fn(self, node):
-        return node.total_cost() + node.state.heuristic(self.goal_state)
-
     def __init__(self, **kwargs):
         super().__init__(memoryless=False, **kwargs)
 
+    def priority_fn(self, node):
+        return node.total_cost() + node.state.heuristic(self.goal_state)
+
 
 class HillClimbing(SingleStateSearch):
+
+    def __init__(self, **kwargs):
+        super().__init__(memoryless=True, **kwargs)
 
     def termination_fn(self, state_list):
         curr_state = state_list[0]
@@ -256,9 +259,6 @@ class HillClimbing(SingleStateSearch):
 
     def priority_fn(self, node):
         return node.state.heuristic()
-
-    def __init__(self, **kwargs):
-        super().__init__(memoryless=True, **kwargs)
 
 
 class RandomRestartHillClimbing(HillClimbing):
