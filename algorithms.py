@@ -155,17 +155,6 @@ class AbstractSearch:
     def search(self, start_state):
         return self.search_state(start_state)
 
-    def random_restart_search(self, start_state, num_restarts=100):
-        best_state = None
-        best_heuristic = None
-        for _ in range(num_restarts):
-            final_state = self.search(start_state.random_state())
-            state_heuristic = final_state.heuristic()
-            if best_state is None or state_heuristic < best_heuristic:
-                best_state = final_state
-                best_heuristic = state_heuristic
-        return best_state
-
 
 class SingleStateSearch(AbstractSearch):
 
@@ -270,3 +259,21 @@ class HillClimbing(SingleStateSearch):
 
     def __init__(self, **kwargs):
         super().__init__(memoryless=True, **kwargs)
+
+
+class RandomRestartHillClimbing(HillClimbing):
+
+    def __init__(self, num_restarts, **kwargs):
+        super().__init__(**kwargs)
+        self.num_restarts = num_restarts
+
+    def search(self, start_state):
+        best_state = None
+        best_heuristic = None
+        for _ in range(self.num_restarts):
+            final_state = super().search(start_state.random_state())
+            state_heuristic = final_state.heuristic()
+            if best_state is None or state_heuristic < best_heuristic:
+                best_state = final_state
+                best_heuristic = state_heuristic
+        return best_state
