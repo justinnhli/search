@@ -1,6 +1,3 @@
-from functools import partial
-
-
 class State:
 
     '''A generic problem state
@@ -98,42 +95,48 @@ class AbstractSearch:
         given a list of states saved for later and a list of newly generated states, determine the states to be in the queue
     '''
 
-    def __init__(self, termination_fn, batch_fn, population_fn, memoryless=True):
+    def __init__(self, memoryless=True):
         # search parameters
-        self.termination_fn = termination_fn
-        self.batch_fn = batch_fn
-        self.population_fn = population_fn
         self.memoryless = memoryless
         # search variables
         self.population = []
         self.visited = set()
 
+    def termination_fn(self, state_list):
+        raise NotImplementedError()
+
+    def batch_fn(self, curr_generation):
+        raise NotImplementedError()
+
+    def population_fn(self, remainder, next_generation):
+        raise NotImplementedError()
+
     def expand_batch(self, batch):
         frontier = []
-        for cur_node in batch:
-            cur_state = cur_node.state
+        for curr_node in batch:
+            curr_state = curr_node.state
             if not self.memoryless:
-                if cur_state in self.visited:
+                if curr_state in self.visited:
                     continue
-                self.visited.add(cur_state)
-            for action in cur_state.actions():
+                self.visited.add(curr_state)
+            for action in curr_state.actions():
                 if action.next_state not in self.visited:
                     if self.memoryless:
                         next_node = PathNode(action.next_state, None, action)
                     else:
-                        next_node = PathNode(action.next_state, cur_node, action)
+                        next_node = PathNode(action.next_state, curr_node, action)
                     frontier.append(next_node)
         return frontier
 
     def search_nodes(self, start_state):
-        cur_generation = [PathNode(start_state)]
+        curr_generation = [PathNode(start_state)]
         self.visited = set()
-        while not self.termination_fn([node.state for node in cur_generation]):
+        while not self.termination_fn([node.state for node in curr_generation]):
             next_generation = []
-            batch, remainder = self.batch_fn(cur_generation)
+            batch, remainder = self.batch_fn(curr_generation)
             next_generation = self.expand_batch(batch)
-            cur_generation = self.population_fn(remainder, next_generation)
-        return cur_generation
+            curr_generation = self.population_fn(remainder, next_generation)
+        return curr_generation
 
     def search_node(self, start_state):
         nodes = self.search_nodes(start_state)
@@ -164,203 +167,106 @@ class AbstractSearch:
         return best_state
 
 
-class DepthFirstSearch(AbstractSearch):
+class SingleStateSearch(AbstractSearch):
 
-    @staticmethod
-    def _batch_fn(cur_generation):
-        generation = sorted(cur_generation, key=(lambda node: node.total_cost()), reverse=True)
+    def batch_fn(self, curr_generation):
+        generation = sorted(curr_generation, key=self.priority_fn)
         return [generation[0]], generation[1:]
 
-    @staticmethod
-    def _population_fn(remainder, next_generation):
+    def population_fn(self, remainder, next_generation):
         result = sorted(
             remainder + next_generation,
-            key=(lambda node: (node.total_cost(), *node.state.to_tuple())),
-            reverse=True,
+            key=(lambda node: (self.priority_fn(node), *node.state.to_tuple())),
         )
         return result
 
-    def __init__(self, termination_fn):
-        super().__init__(
-            termination_fn,
-            batch_fn=DepthFirstSearch._batch_fn,
-            population_fn=DepthFirstSearch._population_fn,
-            memoryless=False,
-        )
+    def priority_fn(self, node):
+        raise NotImplementedError()
 
 
-class GoalOrientedDepthFirstSearch(DepthFirstSearch):
+class GoalOrientedSearch(AbstractSearch):
 
-    @staticmethod
-    def _termination_fn(state_list, goal_state):
-        return state_list and state_list[0] == goal_state
+    def termination_fn(self, state_list):
+        return state_list and state_list[0] == self.goal_state
 
-    def __init__(self, goal_state):
+    def __init__(self, goal_state, **kwargs):
+        super().__init__(**kwargs)
         self.goal_state = goal_state
-        termination_fn = (lambda state_list: GoalOrientedDepthFirstSearch._termination_fn(state_list, self.goal_state))
-        super().__init__(termination_fn=termination_fn)
 
 
-class BreadthFirstSearch(AbstractSearch):
+class DepthFirstSearch(SingleStateSearch):
 
-    @staticmethod
-    def _batch_fn(cur_generation):
-        generation = sorted(cur_generation, key=(lambda node: node.total_cost()))
-        return [generation[0]], generation[1:]
+    def priority_fn(self, node):
+        return -len(node.path())
 
-    @staticmethod
-    def _population_fn(remainder, next_generation):
-        result = sorted(
-            remainder + next_generation,
-            key=(lambda node: (node.total_cost(), *node.state.to_tuple())),
-        )
-        return result
-
-    def __init__(self, termination_fn):
-        super().__init__(
-            termination_fn,
-            batch_fn=BreadthFirstSearch._batch_fn,
-            population_fn=BreadthFirstSearch._population_fn,
-            memoryless=False,
-        )
+    def __init__(self, **kwargs):
+        super().__init__(memoryless=False, **kwargs)
 
 
-class GoalOrientedBreadthFirstSearch(BreadthFirstSearch):
+class GoalOrientedDepthFirstSearch(DepthFirstSearch, GoalOrientedSearch):
 
-    @staticmethod
-    def _termination_fn(state_list, goal_state):
-        return state_list and state_list[0] == goal_state
-
-    def __init__(self, goal_state):
-        self.goal_state = goal_state
-        termination_fn = (
-            lambda state_list: GoalOrientedBreadthFirstSearch._termination_fn(state_list, self.goal_state)
-        )
-        super().__init__(termination_fn=termination_fn)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
 
-class UniformCostSearch(AbstractSearch):
+class BreadthFirstSearch(SingleStateSearch):
 
-    @staticmethod
-    def _termination_fn(state_list, goal_state):
-        return state_list and state_list[0] == goal_state
+    def priority_fn(self, node):
+        return len(node.path())
 
-    @staticmethod
-    def _batch_fn(cur_generation):
-        generation = sorted(cur_generation, key=(lambda node: node.total_cost()))
-        return [generation[0]], generation[1:]
-
-    @staticmethod
-    def _population_fn(remainder, next_generation):
-        result = sorted(
-            remainder + next_generation,
-            key=(lambda node: (node.total_cost(), *node.state.to_tuple())),
-        )
-        return result
-
-    def __init__(self, goal_state):
-        self.goal_state = goal_state
-        termination_fn = (lambda state_list: GreedyBestFirstSearch._termination_fn(state_list, self.goal_state))
-        super().__init__(
-            termination_fn=termination_fn,
-            batch_fn=UniformCostSearch._batch_fn,
-            population_fn=UniformCostSearch._population_fn,
-            memoryless=False,
-        )
+    def __init__(self, **kwargs):
+        super().__init__(memoryless=False, **kwargs)
 
 
-class GreedyBestFirstSearch(AbstractSearch):
+class GoalOrientedBreadthFirstSearch(BreadthFirstSearch, GoalOrientedSearch):
 
-    @staticmethod
-    def _termination_fn(state_list, goal_state):
-        return state_list and state_list[0] == goal_state
-
-    @staticmethod
-    def _batch_fn(cur_generation):
-        generation = sorted(cur_generation, key=(lambda node: node.state.heuristic()))
-        return [generation[0]], generation[1:]
-
-    @staticmethod
-    def _population_fn(remainder, next_generation):
-        result = sorted(
-            remainder + next_generation,
-            key=(lambda node: (node.state.heuristic(), *node.state.to_tuple())),
-        )
-        return result
-
-    def __init__(self, goal_state):
-        self.goal_state = goal_state
-        termination_fn = (lambda state_list: GreedyBestFirstSearch._termination_fn(state_list, self.goal_state))
-        super().__init__(
-            termination_fn=termination_fn,
-            batch_fn=GreedyBestFirstSearch._batch_fn,
-            population_fn=GreedyBestFirstSearch._population_fn,
-            memoryless=False,
-        )
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
 
-class AStarSearch(AbstractSearch):
+class UniformCostSearch(SingleStateSearch):
 
-    @staticmethod
-    def _termination_fn(state_list, goal_state):
-        return state_list and state_list[0] == goal_state
+    def priority_fn(self, node):
+        return node.total_cost()
 
-    @staticmethod
-    def _batch_fn(cur_generation, goal_state):
-        generation = sorted(
-            cur_generation,
-            key=(lambda node: node.total_cost() + node.state.heuristic(goal_state)),
-        )
-        return [generation[0]], generation[1:]
-
-    @staticmethod
-    def _population_fn(remainder, next_generation, goal_state):
-        result = sorted(
-            remainder + next_generation,
-            key=(lambda node: (node.total_cost() + node.state.heuristic(goal_state), *node.state.to_tuple())),
-        )
-        return result
-
-    def __init__(self, goal_state):
-        self.goal_state = goal_state
-        termination_fn = (lambda state_list: AStarSearch._termination_fn(state_list, self.goal_state))
-        super().__init__(
-            termination_fn=termination_fn,
-            batch_fn=(lambda cur_generation: AStarSearch._batch_fn(cur_generation, self.goal_state)),
-            population_fn=(lambda remainder, next_generation: AStarSearch._population_fn(remainder, next_generation, self.goal_state)),
-            memoryless=False,
-        )
+    def __init__(self, **kwargs):
+        super().__init__(memoryless=False, **kwargs)
 
 
-class HillClimbing(AbstractSearch):
+class GoalOrientedUniformCostSearch(UniformCostSearch, GoalOrientedSearch):
 
-    @staticmethod
-    def _termination_fn(state_list):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+
+class GreedyBestFirstSearch(SingleStateSearch, GoalOrientedSearch):
+
+    def priority_fn(self, node):
+        return node.state.heuristic(self.goal_state)
+
+    def __init__(self, **kwargs):
+        super().__init__(memoryless=False, **kwargs)
+
+
+class AStarSearch(SingleStateSearch, GoalOrientedSearch):
+
+    def priority_fn(self, node):
+        return node.total_cost() + node.state.heuristic(self.goal_state)
+
+    def __init__(self, **kwargs):
+        super().__init__(memoryless=False, **kwargs)
+
+
+class HillClimbing(SingleStateSearch):
+
+    def termination_fn(self, state_list):
         curr_state = state_list[0]
         curr_heuristic = curr_state.heuristic()
         next_heuristics = [action.next_state.heuristic() for action in curr_state.actions()]
         return not any(next_heuristic < curr_heuristic for next_heuristic in next_heuristics)
 
-    @staticmethod
-    def _batch_fn(cur_generation):
-        generation = sorted(
-            cur_generation,
-            key=(lambda node: node.state.heuristic()),
-        )
-        return [generation[0]], generation[1:]
+    def priority_fn(self, node):
+        return node.state.heuristic()
 
-    @staticmethod
-    def _population_fn(remainder, next_generation):
-        result = min(
-            remainder + next_generation,
-            key=(lambda node: (node.state.heuristic(), *node.state.to_tuple())),
-        )
-        return [result]
-
-    def __init__(self):
-        super().__init__(
-            termination_fn=HillClimbing._termination_fn,
-            batch_fn=HillClimbing._batch_fn,
-            population_fn=HillClimbing._population_fn,
-            memoryless=True,
-        )
+    def __init__(self, **kwargs):
+        super().__init__(memoryless=True, **kwargs)

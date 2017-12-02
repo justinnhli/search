@@ -13,17 +13,17 @@ class Search_GridWorld(unittest.TestCase):
         self.goal_state = domains.GridWorldState(19, 15, 20, 20)
 
     def test_bfs(self):
-        final_node = search.GoalOrientedBreadthFirstSearch(self.goal_state).search_node(self.start_state)
+        final_node = search.GoalOrientedBreadthFirstSearch(goal_state=self.goal_state).search_node(self.start_state)
         self.assertIsNotNone(final_node)
         self.assertEqual(len(final_node.path()), 35)
 
     def test_ucs(self):
-        final_node = search.UniformCostSearch(self.goal_state).search_node(self.start_state)
+        final_node = search.GoalOrientedUniformCostSearch(goal_state=self.goal_state).search_node(self.start_state)
         self.assertIsNotNone(final_node)
         self.assertEqual(len(final_node.path()), 35)
 
     def test_astar(self):
-        final_node = search.AStarSearch(self.goal_state).search_node(self.start_state)
+        final_node = search.AStarSearch(goal_state=self.goal_state).search_node(self.start_state)
         self.assertIsNotNone(final_node)
         self.assertEqual(len(final_node.path()), 35)
 
@@ -35,7 +35,7 @@ class Search_SlidingPuzzle(unittest.TestCase):
         self.goal_state = domains.SlidingPuzzleState(' 12345678')
 
     def test_astar(self):
-        final_node = search.AStarSearch(self.goal_state).search_node(self.start_state)
+        final_node = search.AStarSearch(goal_state=self.goal_state).search_node(self.start_state)
         self.assertIsNotNone(final_node)
         self.assertEqual(len(final_node.path()), 21)
 
