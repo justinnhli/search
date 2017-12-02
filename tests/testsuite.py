@@ -2,8 +2,8 @@
 
 import unittest
 
-import algorithms
-import domains
+from search import algorithms
+from search import domains
 
 
 class Search_GridWorld(unittest.TestCase):
