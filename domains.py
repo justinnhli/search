@@ -61,22 +61,22 @@ class GridWorldState(State):
         if self.col - 1 >= 0:
             actions.append(Action(
                 'left',
-                GridWorldState(self.col-1, self.row, self.num_rows, self.num_cols),
+                GridWorldState(self.row, self.col-1, self.num_rows, self.num_cols),
                 1))
         if self.row - 1 >= 0:
             actions.append(Action(
                 'down',
-                GridWorldState(self.col, self.row-1, self.num_rows, self.num_cols),
+                GridWorldState(self.row-1, self.col, self.num_rows, self.num_cols),
                 1))
         if self.col + 1 < self.num_cols:
             actions.append(Action(
                 'right',
-                GridWorldState(self.col+1, self.row, self.num_rows, self.num_cols),
+                GridWorldState(self.row, self.col+1, self.num_rows, self.num_cols),
                 1))
         if self.row + 1 < self.num_rows:
             actions.append(Action(
                 'up',
-                GridWorldState(self.col, self.row+1, self.num_rows, self.num_cols),
+                GridWorldState(self.row+1, self.col, self.num_rows, self.num_cols),
                 1))
         return actions
 
