@@ -163,11 +163,10 @@ class SingleStateSearch(AbstractSearch):
         return [generation[0]], generation[1:]
 
     def population_fn(self, remainder, next_generation):
-        result = sorted(
+        return sorted(
             remainder + next_generation,
             key=(lambda node: (self.priority_fn(node), *node.state.to_tuple())),
         )
-        return result
 
     def priority_fn(self, node):
         raise NotImplementedError()
