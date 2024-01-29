@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from math import sqrt
+from collections import defaultdict
 
 from search import State, Action
 
@@ -231,3 +232,47 @@ class SlidingPuzzleState(State):
             row, col = self.index_to_coord(self.state.index(tile))
             total += abs(goal_row - row) + abs(goal_col - col)
         return total
+
+
+class WordLadder(State):
+
+    """A word ladder puzzle.
+
+    This version does not currently support adding or removing letters.
+    """
+
+    WORDS_FILE_PATH = Path('/usr/share/dict').expanduser().resolve()
+    WORDS = None
+
+    def __init__(self, word):
+        if WordLadder.WORDS is None:
+            WordLadder.WORDS = defaultdict(set)
+            with open(WordLadder.WORDS_FILE_PATH) as fd:
+                for dict_word in fd:
+                    dict_word = dict_word.lower().strip()
+                    WordLadder.WORDS[len(dict_word)].add(dict_word)
+        self.word = word
+
+    def actions(self):
+        actions = []
+        for word in WordLadder.WORDS[len(self.word)]:
+            if WordLadder.different_letters(self.word, word) == 1:
+                actions.append(Action(
+                    f'{self.word} -> {word}',
+                    WordLadder(word),
+                    1,
+                ))
+        return actions
+
+    def heuristic(self, goal=None):
+        return WordLadder.different_letters(self.word, goal.word)
+
+    @staticmethod
+    def different_letters(word1, word2):
+        return (
+            abs(len(word1) - len(word2))
+            + sum(
+                1 for char1, char2 in zip(word1, word2)
+                if char1 != char2
+            )
+        )
