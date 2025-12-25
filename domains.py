@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
-from math import sqrt
 from collections import defaultdict
+from math import sqrt
+from random import Random
 
 from search import State, Action
 
@@ -83,6 +84,56 @@ class GridWorldState(State):
 
     def heuristic(self, goal=None):
         return sqrt((self.row - goal.row)**2 + (self.col - goal.col)**2)
+
+
+class MazeState(GridWorldState):
+
+    def __init__(self, num_rows, num_cols, seed=None):
+        self.cells = {}
+        for row in range(num_rows):
+            for col in range(num_cols):
+                self.cells[(row, col)] = set()
+        self.rng = Random(seed)
+        super().__init__(0, 0, num_rows, num_cols)
+        self._create_maze()
+
+    def _create_maze(self):
+        remaining = set(self.cells.keys())
+        # pick a random cell to include in the maze
+        remaining.discard(self.rng.choice(sorted(remaining)))
+        # do random walks from a random remaining cell
+        while remaining:
+            # pick a random remaining cell
+            start = self.rng.choice(sorted(remaining))
+            # random walk to a visited cell
+            walk = {}
+            cur = start
+            while cur in remaining:
+                direction = (0, 0)
+                valid = False
+                while not valid:
+                    direction = self.rng.choice([(-1, 0), (1, 0), (0, -1), (0, 1)])
+                    nxt = (cur[0] + direction[0], cur[1] + direction[1])
+                    valid = (0 <= nxt[0] < size and 0 <= nxt[1] < size)
+                walk[cur] = direction
+                cur = nxt
+            # retrace from start and add cells to the maze
+            cur = start
+            while cur in walk:
+                remaining.discard(cur)
+                direction = walk[cur]
+                self.cells[cur].add(direction)
+                cur = (cur[0] + direction[0], cur[1] + direction[1])
+                self.cells[cur].add((-1 * direction[0], -1 * direction[1]))
+
+    def actions(self):
+        actions = []
+        cur = (self.row, self.col)
+        for action in super().actions():
+            direction = (action.row - self.row, action.col - self.col)
+            if direction in self.cells[cur]:
+                actions.append(action)
+        return actions
 
 
 class PolynomialDescentState(State):
